@@ -11,8 +11,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ViT import PatchEmbed2D, Block
-from utils import get_2d_sincos_pos_embed
+from .ViT import PatchEmbed2D, Block
+from .utils import get_2d_sincos_pos_embed
 
 
 

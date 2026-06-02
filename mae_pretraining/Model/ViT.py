@@ -25,7 +25,7 @@ import torch.nn.functional as F
 import torchvision
 
 #from utils.weight_init import trunc_normal_, init_weights_vit_timm, get_init_weights_vit, named_apply
-from utils import get_2d_sincos_pos_embed
+from .utils import get_2d_sincos_pos_embed
 
 class Vision_Transformer2D(nn.Module):
     """

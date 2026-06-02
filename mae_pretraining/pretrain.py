@@ -1,7 +1,7 @@
 
 from pretrain_mae import pretrain_mae
 from Model.build_model import build_mae,make_optimizer
-from dataloader_pretrain import build_pretraining_dataloader
+from dataloader_pretrain import IXIOASISDataModule
 from datetime import datetime
 import argparse
 import os
@@ -11,6 +11,7 @@ import torch
 import yaml
 import logging
 import wandb
+import glob
 
 def set_seed(seed):
     
@@ -43,6 +44,7 @@ def wandb_setup(cfg, args, SAVE_DIR):
 
 def setup_logger(SAVE_DIR, timestamp_current):
     # Set up the logger
+    os.makedirs(SAVE_DIR +'/logs/', exist_ok=True)
     if len(glob.glob( SAVE_DIR +'/logs/'+ '*')) > 0:
         print('Logger found...')
         print('----------------')
@@ -66,7 +68,7 @@ if __name__ == "__main__":
     #parser.add_argument("--config_file", type=str, required=True, help="Path to the configuration file for training.")
     parser.add_argument("--mask_ratio", type=float, required=True, help="Ratio of the input to mask during pretraining.")
     parser.add_argument("--plane", type=str, required=True, choices=['sagittal', 'coronal', 'axial', 'all'], help="Input plane for the model.")
-    parser.add_argument("--data_dir", type=str, default="Data/", help="Path to the directory containing the fMRI data.")
+    parser.add_argument("--data_dir", type=str, default="Data/pretraining/", help="Path to the directory containing the fMRI data.")
     parser.add_argument("--save_dir", type=str, default="Results/Pretraining/", help="Path to the directory where the pretrained model will be saved.")  
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument('--iter_start', default=0, type=int, help='Starting iteration count of training')
@@ -75,7 +77,7 @@ if __name__ == "__main__":
     
     set_seed(args.seed)
     
-    base_directory = "/home/hpc/iwi5/iwi5360h/FMRIAD/mae_pretraining/"
+    base_directory = "/home/hpc/iwi5/iwi5360h/ADMRI/fmriAD/mae_pretraining/"
     config_file = open(base_directory + "config.yml", 'rb')
     cfg = yaml.load(config_file, Loader=yaml.FullLoader)
     
@@ -124,6 +126,7 @@ if __name__ == "__main__":
     logger.info(args)
     
     pretrain_mae(cfg = cfg,
+                 args = args,
                 model = model,
                 optimizer = optimizer,
                 scaler = scaler,

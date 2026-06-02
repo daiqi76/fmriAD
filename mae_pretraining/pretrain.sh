@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --time=3:00:00
+#SBATCH --time=1:00:00
 #SBATCH --job-name=pretrain_mae
 
 #SBATCH --export=NONE
@@ -19,5 +19,5 @@ module load python
 conda activate mae_venv
 
 
-python pretrain.py --mask_ratio 0.75 --plane axial --data_dir Data/ --save_dir Results/Pretraining/test --seed 42
+python pretrain.py --mask_ratio 0.75 --plane axial --seed 42
 

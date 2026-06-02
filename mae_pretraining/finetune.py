@@ -86,11 +86,20 @@ if __name__ == '__main__':
 
     # Parse some variable configs
     parser = argparse.ArgumentParser(description='Fine-tune model for MRI imaging for classification of AD')
+    parser.add_argument('--plane', required=True, type=str, choices=['sagittal', 'coronal', 'axial', 'all'], help='Input plane for the model')
+    parser.add_argument(
+        "--fold",
+        type=int,
+        required=True,
+        choices=[0, 1, 2, 3, 4],
+        help="Fold index (0-based) for 5-fold cross-validation.",
+    )
     parser.add_argument('--seed',default=42, type=int, help='Experiment seed (for reproducible results)')
     parser.add_argument('--iter_start', default=0, type=int, help='Starting iteration count of training')
     parser.add_argument('--checkpoint', default='Results/Pretraining/Checkpoints/', type=str, help='Checkpoint model path')
     parser.add_argument('--save_dir', default='Results/Finetuning/', type=str, help='Directory to save trained model')
     parser.add_argument('--data_dir', default='Data/', type=str, help='Directory containing the fMRI data')
+    
     args = parser.parse_args()
 
     
@@ -101,8 +110,10 @@ if __name__ == '__main__':
     
     SAVE_DIR = base_directory + args.save_dir + '_' +  '_seed_' + str(args.seed)
     DATA_DIR = base_directory + args.data_dir
-    checkpoint_path = base_directory + args.checkpoint
-
+    checkpoint_pretrained = base_directory + args.checkpoint
+    checkpoint_finetune = SAVE_DIR + '/' + 'Checkpoints/'
+    os.makedirs(checkpoint_finetune, exist_ok=True)
+    
     # Set seed
     set_seed(args.seed)
 
@@ -119,7 +130,7 @@ if __name__ == '__main__':
     logger.info("Training mode (vanilla/uda/etc) : " + args.mode)
     
     model = build_ViT(cfg, args)
-    model = load_pretrained_checkpoint(model, checkpoint_path)
+    model = load_pretrained_checkpoint(model, checkpoint_pretrained)
     model.cuda()
 
     optimizer = make_optimizer(cfg, args, model)
@@ -142,11 +153,27 @@ if __name__ == '__main__':
 
     # Init wandb
     wandb_setup(cfg, args, SAVE_DIR)
+    
+    # Build Datasets and Dataloaders
+    dm = ADNIDataModule(
+        plane=args.plane,
+        fold=args.fold,
+        batch_size=cfg["DATALOADER"]["BATCH_SIZE"],
+        num_workers=cfg["DATALOADER"]["NUM_WORKERS"],
+    )
+    dm.setup()
+    train_dataloader = dm.train_dataloader()
+    val_dataloader = dm.val_dataloader()
+    test_dataloader = dm.test_dataloader()
+    train_dataset = dm.train_dataset
+    val_dataset = dm.val_dataset
+    test_dataset = dm.test_dataset
+    
 
     trained_model = do_train(
-        cfg, args, SAVE_DIR, model, criterion, optimizer, scaler, train_dataloader,
+        cfg, args, checkpoint_finetune, model, criterion, optimizer, scaler, train_dataloader,
         train_dataset, logger, early_stopper, True,
-        test_dataloader
+        val_dataloader
     )
     
 

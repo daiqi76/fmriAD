@@ -1,7 +1,8 @@
-from maskedautoencoder import MaskedAutoencoderViT
+from .maskedautoencoder import MaskedAutoencoderViT
 import torch.optim as optim
-from ViT import Vision_Transformer2D
+from .ViT import Vision_Transformer2D
 import torch.nn as nn
+import torch
 
 def build_ViT(cfg, args):
     # Build the ViT model

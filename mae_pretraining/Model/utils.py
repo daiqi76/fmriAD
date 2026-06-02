@@ -10,7 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 import timm
 
 
-class EarlyStopping:
+# class EarlyStopping:
 
 def load_pretrained_checkpoint(model, checkpoint_path):
     files = [f for f in os.listdir(checkpoint_path) if filename in f]

@@ -23,9 +23,9 @@ from Model.utils import adjust_learning_rate_halfcosine, save_model
 from torch.utils.data import DataLoader
 
 
-def pretrain_mae(cfg = cfg, model = model, optimizer = optimizer, scaler = scaler, logger = logger, 
-                checkpoint_path=checkpoint_path,validation_dataloader = validation_dataloader, pretraining_dataloader = pretraining_dataloader,
-                pretraining_dataset = pretraining_dataset):
+def pretrain_mae(cfg,args, model, optimizer, scaler, logger, 
+                checkpoint_path,validation_dataloader, pretraining_dataloader,
+                pretraining_dataset):
 
     "Do Mae pretraining"
 
@@ -34,7 +34,7 @@ def pretrain_mae(cfg = cfg, model = model, optimizer = optimizer, scaler = scale
     batch_size = cfg['DATALOADER']['BATCH_SIZE']
     iter_per_epoch = len(pretraining_dataset) / batch_size
     epochs = cfg['TRAINING']['EPOCHS']
-    mask_ratio = cfg['TRAINING']['MASK_RATIO']
+    mask_ratio = args.mask_ratio
     
     logger.info('Started training')
 
@@ -66,7 +66,7 @@ def pretrain_mae(cfg = cfg, model = model, optimizer = optimizer, scaler = scale
         
             images = batch_data["image"].cuda(non_blocking=True)   
             # with amp.autocast(enabled=True):
-            loss, _, _ = model(images, mask_ratio=args.mask_ratio)
+            loss, _, _ = model(images, mask_ratio=mask_ratio)
             # print('loss:', loss)
         
                     
@@ -151,13 +151,13 @@ def pretrain_mae(cfg = cfg, model = model, optimizer = optimizer, scaler = scale
             f'Best so far: epoch {best_epoch + 1}, val loss {best_val_loss:.4f}'
         )
 
-        # early stopping hooks 
-        if os.path.exists(os.path.join(cfg['TRAINING']['CHECKPOINT'], 'stop.txt')):
-            logger.info('Stop file detected - ending training early.')
-            break
+        # early stopping hooks (not activated)
+        # if os.path.exists(os.path.join(cfg['TRAINING']['CHECKPOINT'], 'stop.txt')):
+        #     logger.info('Stop file detected - ending training early.')
+        #     break
 
-        if os.path.exists(os.path.join(cfg['TRAINING']['CHECKPOINT'], 'pdb.txt')):
-            import pdb; pdb.set_trace()
+        # if os.path.exists(os.path.join(cfg['TRAINING']['CHECKPOINT'], 'pdb.txt')):
+        #     import pdb; pdb.set_trace()
 
     logger.info(
         f'Training finished. Best checkpoint: epoch {best_epoch + 1}, '

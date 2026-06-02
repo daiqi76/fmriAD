@@ -1,1 +1,5 @@
 mae_pretraining/Data
+mae_pretraining/Results
+mae_pretraining/wandb
+mae_pretraining/__pycache__
+mae_pretraining/Model/__pycache__

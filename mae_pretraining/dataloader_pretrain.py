@@ -8,6 +8,12 @@ from PIL import Image
 from sklearn.model_selection import StratifiedKFold
 from dataset_pretrain import IXIOASISDataset
 
+# ---------------------------------------------------------------------------
+# ImageNet normalisation constants
+# ---------------------------------------------------------------------------
+
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD  = [0.229, 0.224, 0.225]
 
 def transform() -> T.Compose:
     """Normalisation-only pipeline"""

@@ -6,6 +6,7 @@ class IXIOASISDataset(Dataset):
     def __init__(self, split: str, plane: str, path: Path, transform=None):
         self.transform = transform
         self.plane = plane
+        self.path = Path(path)
         split_plain_dir = self.path / split / plane
         self.records = [
             p for p in sorted(split_plain_dir.glob("*"))
@@ -18,6 +19,12 @@ class IXIOASISDataset(Dataset):
 
     def __getitem__(self, idx):
         img = Image.open(self.records[idx]).convert("L")
+        if self.plane == "all":
+            img = img.convert("RGB")
+        else:
+            # Grayscale → 3-channel RGB (channel replication)
+            img = img.convert("L").convert("RGB")
+
         if self.transform is not None:
             img = self.transform(img)
         return {"image": img}

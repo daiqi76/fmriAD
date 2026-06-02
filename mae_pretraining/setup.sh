@@ -22,11 +22,12 @@ module add python
 conda config --add pkgs_dirs $WORK/software/private/conda/pkgs
 conda config --add envs_dirs $WORK/software/private/conda/envs
 
-conda create -n mae_venv -y
+#conda create -n mae_venv -y
    
 conda activate mae_venv
 
-pip install numpy matplotlib nibabel pillow scikit-image natsort wandb torch pyyaml pytorch-lightning torchvision scikit-learn
+#pip install numpy matplotlib nibabel pillow scikit-image natsort wandb torch pyyaml pytorch-lightning torchvision scikit-learn
+pip install wandb weave
 
 mkdir -p /scratch/$SLURM_JOB_ID
 
