@@ -8,7 +8,7 @@ from sklearn.base import TransformerMixin
 from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime
 import timm
-
+import time 
 
 
 # class EarlyStopping:
@@ -22,6 +22,17 @@ import timm
 #         print(ckp, ' found and loaded.')
     
 #     return model
+
+def load_checkpoint(model, filename):
+    files = os.listdir(filename)
+    if len(files)>0:
+        files.sort()
+        ckp = files[-1]
+        model.load_state_dict(torch.load(filename+ckp)['net'])
+        print(ckp, ' found and loaded.')
+    
+    return model
+
 
 def load_pretrained_checkpoint(model, pre_trained_model_path, checkpoint_type=None):
     """Loading (transferring) pre-trained MAE model weights
@@ -57,8 +68,8 @@ def load_pretrained_checkpoint(model, pre_trained_model_path, checkpoint_type=No
             del checkpoint_model[k]
     
     msg = model.load_state_dict(checkpoint_model, strict=False)
-
-    print(msg.missing_keys)
+    # print("Missing:", msg.missing_keys)
+    # print("Unexpected:", msg.unexpected_keys)
     
     # if checkpoint_type != 'no_pos_embed':
     #     assert set(msg.missing_keys) == set(keys_to_remove), print(msg.missing_keys)
@@ -111,14 +122,18 @@ class EarlyStopping():
                 print('INFO: Early stopping')
                 self.early_stop = True
 
-def save_model(args, cfg, model, filename, epoch, steps):
+def save_model(args, cfg, model, filename, epoch, steps, finetune=False):
     flist = glob.glob(filename+ '*')
     for f in flist:
         os.remove(f)
-    mask_ratio = args.mask_ratio
+    
     plane = args.plane
-    today = time()
-    filename = f"{filename}_epoch{epoch+1}_steps{steps}_plane{plane}_mask{mask_ratio:.2f}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth.tar"
+    today = time.time()
+    if finetune:
+        filename = f"{filename}_epoch{epoch+1}_steps{steps}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth.tar"
+    else:
+        mask_ratio = args.mask_ratio
+        filename = f"{filename}_epoch{epoch+1}_steps{steps}_plane{plane}_mask{mask_ratio:.2f}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth.tar"
     if len([x for x in args.devices.split(",")]) > 1:
         state = {"net": model.module.state_dict()}
     else:

@@ -102,6 +102,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint', default='Results/Pretraining/__seed_42/Checkpoints/', type=str, help='Checkpoint model path')
     parser.add_argument('--save_dir', default='Results/Finetuning/', type=str, help='Directory to save trained model')
     parser.add_argument('--data_dir', default='Data/', type=str, help='Directory containing the fMRI data')
+    parser.add_argument('--devices', default="gpu", type=str, help='GPU device ids to use for training, e.g. "0,1,2,3"')
     
     args = parser.parse_args()
 
@@ -183,9 +184,11 @@ if __name__ == '__main__':
     )
     
 
-    test_acc, bal_acc, corrects, n_datapoints = do_inference(
+    test_acc, balanced_acc, test_auc, corrects, n_datapoints = do_inference(
             cfg, args, trained_model, test_dataloader, logger
         )
+    
+    print(f"Test Accuracy: {test_acc:.4f}, Balanced Accuracy: {balanced_acc:.4f}, AUC: {test_auc:.4f}")
 
 
 

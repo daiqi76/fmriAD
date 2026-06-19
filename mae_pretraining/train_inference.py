@@ -33,7 +33,7 @@ from timm.utils import accuracy
 from Model.build_model import build_ViT
 from Model.ViT import Vision_Transformer2D
 from Model.utils import make_scheduler
-from Model.utils import adjust_learning_rate_halfcosine, adjust_alpha, set_requires_grad, loop_iterable, save_model, load_pretrained_checkpoint
+from Model.utils import adjust_learning_rate_halfcosine, adjust_alpha, set_requires_grad, loop_iterable, save_model, load_pretrained_checkpoint, load_checkpoint
 
 
 def do_train(cfg, args, checkpoint_path, model, criterion, optimizer, scaler, source_loader, 
@@ -124,26 +124,26 @@ def do_train(cfg, args, checkpoint_path, model, criterion, optimizer, scaler, so
         #  Validation                                                          #
         # ------------------------------------------------------------------ #
         
-        val_acc, balanced_acc, val_auc, _, _ = do_inference(cfg, args, model, val_dataloader, logger, is_validation=True)
+        test_acc, balanced_acc, val_auc, _, _ = do_inference(cfg, args, model, val_dataloader, logger, is_validation=True)
         model.train()
-        if val_acc_best < val_acc:
-            val_acc_best = val_acc
+        if val_acc_best < test_acc:
+            val_acc_best = test_acc
             # saving the best model and removing previous best models (for saving memory)
-            save_model(args, cfg, model, checkpoint_path, epoch, steps)
+            save_model(args, cfg, model, checkpoint_path, epoch, steps, finetune=True)
             print(f'Best model saved: {checkpoint_path}_{epoch}_{steps}')
 
         # Printing train stats and logging
-        print(f'[{epoch+1}/{epochs}] {steps}) LR {lr:.7f}, Loss: {average_loss/iter_per_epoch:.3f}, Acc {100*correct/N_src:.2f}%, N {N_src}, Test Acc {val_acc:.2f}%, Bal acc {balanced_acc:.2f}%')
-        logger.info(f'[{epoch+1}/{epochs}] {steps}) LR {lr:.7f}, Loss: {average_loss/iter_per_epoch:.3f}, Acc {100*correct/N_src:.2f}%, N {N_src}, Test Acc {val_acc:.2f}%, Bal acc {balanced_acc:.2f}%')
+        print(f'[{epoch+1}/{epochs}] {steps}) LR {lr:.7f}, Loss: {average_loss/iter_per_epoch:.3f}, Acc {100*correct/N_src:.2f}%, N {N_src}, Test Acc {test_acc:.2f}%, Bal acc {balanced_acc:.2f}%')
+        logger.info(f'[{epoch+1}/{epochs}] {steps}) LR {lr:.7f}, Loss: {average_loss/iter_per_epoch:.3f}, Acc {100*correct/N_src:.2f}%, N {N_src}, Test Acc {test_acc:.2f}%, Bal acc {balanced_acc:.2f}%')
         
         torch.cuda.empty_cache()
 
         wandb.log({"lr": lr, "epoch": epoch+1, "avg loss": average_loss/iter_per_epoch, 
-                   "train acc": 100*correct/N_src, "test acc": val_acc, "bal acc": balanced_acc, "test auc": test_auc})
+                   "train acc": 100*correct/N_src, "test acc": test_acc, "bal acc": balanced_acc, "test auc": val_auc})
         average_loss, correct = 0, 0
                 
         if epoch > 20 and cfg['TRAINING']['EARLY_STOPPING']:
-            early_stopper(val_acc)
+            early_stopper(test_acc)
             if early_stopper.early_stop:
                 print('Early stopping and saving the model...')
                 # saving the last model by first removing previous models (for saving memory)
@@ -165,7 +165,7 @@ def do_train(cfg, args, checkpoint_path, model, criterion, optimizer, scaler, so
     # print(f'Saved Last Model As: {cfg["TRAINING"]["CHECKPOINT"]}{FILENAME_POSTFIX}_{epoch}_{steps}')
     
     # Load the best-performing model
-    model = load_pretrained_checkpoint(args, cfg, model, checkpoint_path)
+    model = load_checkpoint(model, checkpoint_path)
 
     return model
 
@@ -206,29 +206,35 @@ def do_inference(cfg, args, model, test_loader, logger, is_validation=True):
         
         outputs = model(images) # (1,2))
         logits = F.softmax(outputs, dim=-1).cpu().data # (1,2)
+        preds = torch.argmax(logits, dim=1)
 
         logits_arr.append(logits.detach().cpu())      # (batch_size, 2)
         labels_arr.append(labels.detach().cpu())      # (batch_size,)
+        preds_arr.append(preds.detach().cpu())      # (batch_size,)
         
-        preds = torch.argmax(logits, dim=1)
         corrects += torch.sum(preds == labels)
         n_datapoints += outputs.shape[0]
 
-        preds_arr.append(preds.view(-1).detach().cpu().tolist())
+        #preds_arr.append(preds.view(-1).detach().cpu().tolist())
     
-    val_acc = corrects.item()/n_datapoints
+    logits_arr = torch.cat(logits_arr, dim=0)
+    labels_arr = torch.cat(labels_arr, dim=0)
+    preds_arr = torch.cat(preds_arr, dim=0)
+
+    test_auc = auroc_calc(logits_arr, labels_arr.squeeze()).item()
+    test_acc = corrects.item()/n_datapoints
     # test_auc = roc_auc_score(target_auc.numpy(), output_auc.numpy(), average='weighted', multi_class='ovo')
-    test_auc = auroc_calc(torch.tensor(logits_arr), torch.tensor(labels_arr).squeeze()).item()
+    #test_auc = auroc_calc(torch.tensor(logits_arr), torch.tensor(labels_arr).squeeze()).item()
     # test_cal = calibration_calc(torch.tensor(logits_arr), torch.tensor(labels_arr).squeeze()).item()
     
-    balanced_acc = balanced_accuracy_score(labels_arr, preds_arr)
+    balanced_acc = balanced_accuracy_score(labels_arr.numpy(), preds_arr.numpy())
     
-    logger.info(f'TESTING: Number of datapoints: {n_datapoints}), Accuracy {100*val_acc:.2f}%, Bal ACC {100*balanced_acc:.2f}%, AUC {100*test_auc:.2f}%')
+    logger.info(f'TESTING: Number of datapoints: {n_datapoints}), Accuracy {100*test_acc:.2f}%, Bal ACC {100*balanced_acc:.2f}%, AUC {100*test_auc:.2f}%')
 
     if not is_validation:
-        print(f'TESTING: Number of datapoints: {n_datapoints}), Accuracy {100*val_acc:.2f}%, Bal ACC {100*balanced_acc:.2f}%, AUC {100*test_auc:.2f}%')
+        print(f'TESTING: Number of datapoints: {n_datapoints}), Accuracy {100*test_acc:.2f}%, Bal ACC {100*balanced_acc:.2f}%, AUC {100*test_auc:.2f}%')
 
     del logits_arr, labels_arr, preds_arr, auroc_calc
     gc.collect()
 
-    return 100*val_acc, 100*balanced_acc, 100*test_auc, corrects.item(), n_datapoints
+    return 100*test_acc, 100*balanced_acc, 100*test_auc, corrects.item(), n_datapoints
