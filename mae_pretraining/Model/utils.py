@@ -1,27 +1,71 @@
 import os
 import glob
 import numpy as np
-
+import math
 import torch
 from sklearn.metrics import roc_auc_score
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import MinMaxScaler
-
+from datetime import datetime
 import timm
+
 
 
 # class EarlyStopping:
 
-def load_pretrained_checkpoint(model, checkpoint_path):
-    files = [f for f in os.listdir(checkpoint_path) if filename in f]
-    if len(files)>0:
-        files.sort()
-        ckp = files[-1]
-        model.load_state_dict(torch.load(checkpoint_path+ckp)['net'])
-        print(ckp, ' found and loaded.')
+# def load_pretrained_checkpoint(model, checkpoint_path):
+#     files = [f for f in os.listdir(checkpoint_path)]
+#     if len(files)>0:
+#         files.sort()
+#         ckp = files[-1]
+#         model.load_state_dict(torch.load(checkpoint_path+ckp)['net'])
+#         print(ckp, ' found and loaded.')
     
+#     return model
+
+def load_pretrained_checkpoint(model, pre_trained_model_path, checkpoint_type=None):
+    """Loading (transferring) pre-trained MAE model weights
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        model to finetune
+    pre_trained_model_path : str
+        path to the pre-trained models checkpoint
+    """
+    checkpoint_file = glob.glob(pre_trained_model_path + '*')[0]
+    
+    if pre_trained_model_path == 'imagenet_weights/':
+        keys_to_remove = ['head.weight', 'head.bias', 'pos_embed', 'patch_embed.proj.weight', 'patch_embed.proj.bias']
+        # keys_to_remove = ['head.weight', 'head.bias', 'pos_embed']
+        # checkpoint_model = timm.create_model('vit_large_patch16_224').state_dict()
+        checkpoint_model = timm.create_model('vit_base_patch16_224').state_dict()
+        # checkpoint_model = timm.create_model('vit_small_patch16_224').state_dict()
+        print('Loaded ImageNet pre-trained checkpoint')
+        
+    else:
+        checkpoint = torch.load(checkpoint_file, map_location='cpu')
+        print("Loaded pre-trained checkpoint from: %s" % checkpoint_file)
+        checkpoint_model = checkpoint['net']
+        keys_to_remove = ['head.weight', 'head.bias', 'pos_embed', 'patch_embed.proj.weight', 'patch_embed.proj.bias']
+
+    state_dict = model.state_dict()
+        
+    for k in keys_to_remove:
+        if k in checkpoint_model and k in state_dict and checkpoint_model[k].shape != state_dict[k].shape:
+            print(f"Removing key {k} from pretrained checkpoint")
+            del checkpoint_model[k]
+    
+    msg = model.load_state_dict(checkpoint_model, strict=False)
+
+    print(msg.missing_keys)
+    
+    # if checkpoint_type != 'no_pos_embed':
+    #     assert set(msg.missing_keys) == set(keys_to_remove), print(msg.missing_keys)
+
     return model
 
+### The following functions are implemented in the original code but not used anywhere. They are left here for future reference.
 def make_scheduler():
     pass
 
@@ -34,11 +78,47 @@ def set_requires_grad():
 def loop_iterable(iterable):
     pass
 
+class EarlyStopping():
+    """
+    Early stopping to stop the training when the loss does not improve after
+    certain epochs.
+    """
+    def __init__(self, patience=5, min_delta=0):
+        """
+        :param patience: how many epochs to wait before stopping when loss is
+               not improving
+        :param min_delta: minimum difference between new loss and old loss for
+               new loss to be considered as an improvement
+        """
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+    
+    def __call__(self, val_loss):
+        val_loss = val_loss / 100
+        if self.best_loss == None:
+            self.best_loss = val_loss
+        elif val_loss - self.best_loss > self.min_delta:
+            self.best_loss = val_loss
+            # reset counter if validation loss improves
+            self.counter = 0
+        elif val_loss - self.best_loss < self.min_delta:
+            self.counter += 1
+            print(f"INFO: Early stopping counter {self.counter} of {self.patience}")
+            if self.counter >= self.patience:
+                print('INFO: Early stopping')
+                self.early_stop = True
+
 def save_model(args, cfg, model, filename, epoch, steps):
     flist = glob.glob(filename+ '*')
     for f in flist:
         os.remove(f)
-    filename = filename + '_%03i_%06d.pth.tar'%(epoch, steps)
+    mask_ratio = args.mask_ratio
+    plane = args.plane
+    today = time()
+    filename = f"{filename}_epoch{epoch+1}_steps{steps}_plane{plane}_mask{mask_ratio:.2f}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pth.tar"
     if len([x for x in args.devices.split(",")]) > 1:
         state = {"net": model.module.state_dict()}
     else:

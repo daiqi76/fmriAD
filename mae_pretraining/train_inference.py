@@ -31,7 +31,7 @@ from torch.utils.tensorboard import SummaryWriter
 from timm.utils import accuracy
 
 from Model.build_model import build_ViT
-from Model.ViT import Vision_Transformer
+from Model.ViT import Vision_Transformer2D
 from Model.utils import make_scheduler
 from Model.utils import adjust_learning_rate_halfcosine, adjust_alpha, set_requires_grad, loop_iterable, save_model, load_pretrained_checkpoint
 
@@ -69,6 +69,8 @@ def do_train(cfg, args, checkpoint_path, model, criterion, optimizer, scaler, so
     if cfg['SOLVER']['scheduler'] == 'cosine':
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
+
+    ### In the original code there is a scheduler instantiated here but it is not used anywhere. 
     for epoch in range(int(iter_start/iter_per_epoch), epochs):
         model.train()
         end = time()
@@ -86,8 +88,8 @@ def do_train(cfg, args, checkpoint_path, model, criterion, optimizer, scaler, so
             # adjust_learning_rate_halfcosine(optimizer, steps / len(source_loader) + epoch, cfg)
 
             images, labels = (
-                batch_data["image"].cuda(non_blocking=True),
-                batch_data["label"].cuda(non_blocking=True)
+                batch_data[0].cuda(non_blocking=True),
+                batch_data[1].cuda(non_blocking=True)
             )
                     
             t = time()
@@ -195,18 +197,18 @@ def do_inference(cfg, args, model, test_loader, logger, is_validation=True):
     model.eval()
     for batch_data in test_loader:
 
-        images = batch_data["image"].cuda(non_blocking=True)
+        images = batch_data[0].cuda(non_blocking=True)
         
         
             # if cfg['MODEL']['patch_embed_fun'][-2:] == '2d':
             #         images = images.squeeze(1)
-        labels = batch_data["label"] # (1)
+        labels = batch_data[1] # (1)
         
         outputs = model(images) # (1,2))
         logits = F.softmax(outputs, dim=-1).cpu().data # (1,2)
 
-        logits_arr.append(logits.view(-1).detach().cpu().tolist())
-        labels_arr.append(labels.view(-1).detach().cpu().tolist())
+        logits_arr.append(logits.detach().cpu())      # (batch_size, 2)
+        labels_arr.append(labels.detach().cpu())      # (batch_size,)
         
         preds = torch.argmax(logits, dim=1)
         corrects += torch.sum(preds == labels)

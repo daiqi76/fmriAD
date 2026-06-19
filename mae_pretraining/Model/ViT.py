@@ -24,7 +24,7 @@ import torch.nn.functional as F
 
 import torchvision
 
-#from utils.weight_init import trunc_normal_, init_weights_vit_timm, get_init_weights_vit, named_apply
+from .weigth_init_utils import trunc_normal_, init_weights_vit_timm, get_init_weights_vit, named_apply
 from .utils import get_2d_sincos_pos_embed
 
 class Vision_Transformer2D(nn.Module):
@@ -76,6 +76,7 @@ class Vision_Transformer2D(nn.Module):
 
         self.patch_embed = PatchEmbed2D(
             img_size=img_size,
+            in_chans=in_chans,
             patch_size=patch_size,
             embed_dim=embed_dim,
             )
@@ -242,17 +243,18 @@ class PatchEmbed2D(nn.Module):
     proj : nn.Conv2d
 
     """
-    def __init__(self, img_size, patch_size, embed_dim=768):
+    def __init__(self, img_size,in_chans, patch_size, embed_dim=768):
         super().__init__()
         self.img_size = img_size
+        self.in_chans = in_chans
         self.patch_size = patch_size
         self.n_patches = (img_size[0] // patch_size) * (img_size[1] // patch_size)
 
         # sample random tensor to calculate the output shape
-        sample_torch = torch.rand((1, 1, *self.img_size)) # --> e.g. (1,1,128,128)
+        sample_torch = torch.rand((1, in_chans, *self.img_size)) # --> e.g. (1,1,128,128)
 
         self.proj = nn.Conv2d(
-            in_channels=1,
+            in_channels=in_chans,
             out_channels=embed_dim,
             kernel_size=patch_size,
             stride=patch_size

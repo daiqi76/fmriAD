@@ -1,11 +1,11 @@
 #!/bin/bash -l
 
 
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:a40:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --time=10:00:00
-#SBATCH --job-name=pretrain_mae
+#SBATCH --time=1:00:00
+#SBATCH --job-name=finetune_mae
 
 #SBATCH --export=NONE
 unset SLURM_EXPORT_ENV
@@ -19,5 +19,5 @@ module load python
 conda activate mae_venv
 
 
-python pretrain.py --mask_ratio 0.75 --plane axial --seed 42
+python finetune.py --fold 0 --plane axial --seed 42
 

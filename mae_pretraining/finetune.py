@@ -28,7 +28,7 @@ from torch.utils.data import Dataset, DataLoader
 
 from torch.utils.tensorboard import SummaryWriter
 
-from dataset_finetune import ADNIDataset, get_train_transform, get_val_transform
+from dataset_finetune import ADNIDataset,ADNIDataModule, get_train_transform, get_val_transform
 from train_inference import do_train, do_inference
 from Model.utils import EarlyStopping, load_pretrained_checkpoint
 from Model.build_model import build_ViT, make_optimizer
@@ -57,13 +57,15 @@ def wandb_setup(cfg, args, SAVE_DIR):
         config={
         "lr": cfg['SOLVER']['lr'],
         "dir": SAVE_DIR+'/'+'./wandb/',
-        "mask ratio": args.mask_ratio,
+        #"mask ratio": args.mask_ratio,
         "seed": args.seed
         }
     )
 
+
 def setup_logger(SAVE_DIR, timestamp_current):
     # Set up the logger
+    os.makedirs(SAVE_DIR +'/logs/', exist_ok=True)
     if len(glob.glob( SAVE_DIR +'/logs/'+ '*')) > 0:
         print('Logger found...')
         print('----------------')
@@ -82,6 +84,7 @@ def setup_logger(SAVE_DIR, timestamp_current):
     return logger
 
 
+
 if __name__ == '__main__':
 
     # Parse some variable configs
@@ -96,14 +99,13 @@ if __name__ == '__main__':
     )
     parser.add_argument('--seed',default=42, type=int, help='Experiment seed (for reproducible results)')
     parser.add_argument('--iter_start', default=0, type=int, help='Starting iteration count of training')
-    parser.add_argument('--checkpoint', default='Results/Pretraining/Checkpoints/', type=str, help='Checkpoint model path')
+    parser.add_argument('--checkpoint', default='Results/Pretraining/__seed_42/Checkpoints/', type=str, help='Checkpoint model path')
     parser.add_argument('--save_dir', default='Results/Finetuning/', type=str, help='Directory to save trained model')
     parser.add_argument('--data_dir', default='Data/', type=str, help='Directory containing the fMRI data')
     
     args = parser.parse_args()
 
-    
-    base_directory = "/home/hpc/iwi5/iwi5360h/FMRIAD/mae_pretraining/"
+    base_directory = "/home/hpc/iwi5/iwi5360h/ADMRI/fmriAD/mae_pretraining/"
     config_file = open(base_directory + "config.yml", 'rb')
     cfg = yaml.load(config_file, Loader=yaml.FullLoader)
     
@@ -113,6 +115,10 @@ if __name__ == '__main__':
     checkpoint_pretrained = base_directory + args.checkpoint
     checkpoint_finetune = SAVE_DIR + '/' + 'Checkpoints/'
     os.makedirs(checkpoint_finetune, exist_ok=True)
+    
+    
+    
+    
     
     # Set seed
     set_seed(args.seed)
@@ -124,10 +130,8 @@ if __name__ == '__main__':
     logger = setup_logger(SAVE_DIR, timestamp_current)
     logger.setLevel(logging.DEBUG)
     logger.info('Process number: %d'%(os.getpid()))
-    logger.info("Started training. Savename : " + args.savename + " " + args.mode)
+    logger.info("Started training. Savename : " + args.save_dir)
     logger.info("Seed : " + str(args.seed))
-    logger.info("Source dataset : " + args.source + ", Target dataset : " + args.target)
-    logger.info("Training mode (vanilla/uda/etc) : " + args.mode)
     
     model = build_ViT(cfg, args)
     model = load_pretrained_checkpoint(model, checkpoint_pretrained)
@@ -136,9 +140,6 @@ if __name__ == '__main__':
     optimizer = make_optimizer(cfg, args, model)
     scaler = amp.GradScaler()
     
-    # Initialize loss function and optimizer
-    weight_balance = torch.Tensor(list(train_datalist.__getlabelsratio__().values())).cuda()
-    criterion = nn.CrossEntropyLoss(weight=weight_balance)
     
     
     # Early Stopper
@@ -165,9 +166,14 @@ if __name__ == '__main__':
     train_dataloader = dm.train_dataloader()
     val_dataloader = dm.val_dataloader()
     test_dataloader = dm.test_dataloader()
-    train_dataset = dm.train_dataset
-    val_dataset = dm.val_dataset
-    test_dataset = dm.test_dataset
+    train_dataset = train_dataloader.dataset
+    val_dataset = val_dataloader.dataset
+    test_dataset = test_dataloader.dataset
+    
+    
+    # Initialize loss function and optimizer
+    weight_balance = train_dataset.get_class_weights().cuda()
+    criterion = nn.CrossEntropyLoss(weight=weight_balance)
     
 
     trained_model = do_train(

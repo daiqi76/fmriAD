@@ -6,6 +6,9 @@ TRAINING:
   LOGGING_PERIOD: 200
   EPOCHS: 1000
   CHECKPOINT: './checkpoints/'
+  EARLY_STOPPING: True
+  EARLY_STOPPING_PATIENCE: 5
+  EARLY_STOPPING_DELTA: 0.00001
 
 
 SOLVER:
@@ -15,9 +18,11 @@ SOLVER:
   beta2: 0.95
   warmup_epochs: 40
   min_lr: 0.0000001
+  scheduler: 'Cosine'
 
 MODEL:
-  img_size: [128,128]
+  type: 'ViT'
+  img_size: [224, 224]
   patch_size: 16
   in_chans: 3
   embed_dim: 768

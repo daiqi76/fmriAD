@@ -20,7 +20,7 @@ class MaskedAutoencoderViT(nn.Module):
     def __init__(self, 
                  img_size=[128,128], 
                  patch_size=16, 
-                 in_chans=1,
+                 in_chans=3,
                  embed_dim=768, 
                  depth=12, 
                  num_heads=12,
@@ -36,6 +36,7 @@ class MaskedAutoencoderViT(nn.Module):
         # Encoder part
         self.patch_embed = PatchEmbed2D(
             img_size=img_size,
+            in_chans=in_chans,
             patch_size=patch_size,
             embed_dim=embed_dim
         )
@@ -114,8 +115,8 @@ class MaskedAutoencoderViT(nn.Module):
 
     def patchify2D(self, imgs):
         """
-        imgs: (N, 1, H, W)
-        x: (N, L, patch_size**2 * 1)
+        imgs: (N, 3, H, W)
+        x: (N, L, patch_size**2 * 3)
         """
         p = self.patch_embed.patch_size
         assert imgs.shape[2] % p == 0 and imgs.shape[3] % p == 0
@@ -127,8 +128,8 @@ class MaskedAutoencoderViT(nn.Module):
 
     def unpatchify2D(self, x):
         """
-        x: (N, L, patch_size**2 * 1)
-        imgs: (N, 1, H, W)
+        x: (N, L, patch_size**2 * 3)
+        imgs: (N, 3 , H, W)
         """
         p = self.patch_embed.patch_size
         h = w = int(np.sqrt(x.shape[1]))
@@ -236,4 +237,12 @@ class MaskedAutoencoderViT(nn.Module):
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*2]
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask
+    
+    
+# class MaskedAutoencoderResNet(nn.Module):
+#     def __init__(self, ...):
+#         super().__init__()
 
+# class MaskedAutoencoderSwinB(nn.Module):
+#     def __init__(self, ...):
+#         super().__init__()

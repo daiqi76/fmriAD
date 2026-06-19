@@ -5,18 +5,19 @@
 import json
 from pathlib import Path
 from typing import List, Optional
-
+import torch as torch
 import pytorch_lightning as pl
 import torchvision.transforms as T
 from PIL import Image
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader, Dataset
+from collections import Counter
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 
-IMAGE_ROOT = Path("/home/hpc/iwi5/iwi5360h/fmriAD/mae_pretraining/Data/finetuning")
+IMAGE_ROOT = Path("/home/hpc/iwi5/iwi5360h/ADMRI/fmriAD/mae_pretraining/Data/finetuning")
 
 # ---------------------------------------------------------------------------
 # ImageNet normalisation constants
@@ -100,6 +101,33 @@ class ADNIDataset(Dataset):
 
         label = self.LABEL_MAP[rec["group"]]
         return img, label
+    def get_labelsratio__(self):
+        label_counts = {label: 0 for label in self.LABEL_MAP.keys()}
+        for rec in self.records:
+            label_counts[rec["group"]] += 1
+        
+        #calculate weights for cross entropy loss
+        ratios = {label: count / len(self.records) for label, count in label_counts.items()}
+        
+        return ratios
+    def get_class_weights(self) -> torch.Tensor:
+        """
+        Returns a 1-D float tensor of shape (num_classes,) suitable for the
+        `weight` parameter of nn.CrossEntropyLoss.
+
+        Weight for each class  =  total_samples / (num_classes * class_count)
+        → rare classes get a higher weight, frequent classes get a lower one.
+        """
+        labels = [self.LABEL_MAP[rec["group"]] for rec in self.records]
+        counts = Counter(labels)                          # {class_idx: count, ...}
+        n_samples  = len(labels)
+        n_classes  = len(self.LABEL_MAP)
+
+        weights = torch.zeros(n_classes, dtype=torch.float)
+        for class_idx, count in counts.items():
+            weights[class_idx] = n_samples / (n_classes * count)
+
+        return weights
 
 
 # ---------------------------------------------------------------------------

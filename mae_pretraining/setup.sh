@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --time=1:00:00
 #SBATCH --job-name=setup_pretraining
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:a40:1
 
 #SBATCH --export=NONE
 unset SLURM_EXPORT_ENV
@@ -27,7 +27,7 @@ conda config --add envs_dirs $WORK/software/private/conda/envs
 conda activate mae_venv
 
 #pip install numpy matplotlib nibabel pillow scikit-image natsort wandb torch pyyaml pytorch-lightning torchvision scikit-learn
-pip install wandb weave
+pip install tensorboard
 
 mkdir -p /scratch/$SLURM_JOB_ID
 

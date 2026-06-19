@@ -102,7 +102,7 @@ def pretrain_mae(cfg,args, model, optimizer, scaler, logger,
         n_val_batches    = 0
 
         with torch.no_grad():
-            for batch_data in pretraining_val_dataloader:
+            for batch_data in validation_dataloader:
                 images = batch_data["image"].cuda(non_blocking=True)
                 #with amp.autocast(enabled=True):
                 loss, _, _ = model(images, mask_ratio=mask_ratio)
