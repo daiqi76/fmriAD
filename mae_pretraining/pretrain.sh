@@ -19,5 +19,5 @@ module load python
 conda activate mae_venv
 
 
-python pretrain.py --mask_ratio 0.75 --plane axial --seed 42
+python pretrain.py --mask_ratio 0.75 --plane all --seed 42
 

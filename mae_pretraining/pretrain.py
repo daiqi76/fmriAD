@@ -130,7 +130,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pretrain a Masked Autoencoder (MAE) on fMRI data.")
     #parser.add_argument("--config_file", type=str, required=True, help="Path to the configuration file for training.")
     parser.add_argument("--mask_ratio", type=float, required=True, help="Ratio of the input to mask during pretraining.")
-    #parser.add_argument("--plane", type=str, required=True, choices=['sagittal', 'coronal', 'axial', 'all'], help="Input plane for the model.")
+    parser.add_argument("--plane", type=str, required=True, choices=['sagittal', 'coronal', 'axial', 'all'], help="Input plane for the model.")
     parser.add_argument("--data_dir", type=str, default="Data/pretraining/", help="Path to the directory containing the fMRI data.")
     parser.add_argument("--save_dir", type=str, default="Results/Pretraining/", help="Path to the directory where the pretrained model will be saved.")  
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
@@ -138,9 +138,6 @@ if __name__ == "__main__":
     parser.add_argument('--devices', default="gpu", type=str, help='GPU device ids to use for training, e.g. "0,1,2,3"')
     args = parser.parse_args()
     
-    plains = ['sagittal', 'coronal', 'axial', 'all']
-    for plain in plains:
-        args.plane = plain
-        main(args)
+    main(args)
     
     
